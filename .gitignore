@@ -1,0 +1,8 @@
+
+__pycache__/
+
+\.ipynb_checkpoints/
+
+\.idea/
+
+k8scontroller\.egg-info/
