@@ -3,6 +3,8 @@ import hashlib
 from _hashlib import HASH as Hash
 from pathlib import Path
 from typing import Union
+import string
+import random
 
 
 def md5_update_from_file(filename: Union[str, Path], hash: Hash) -> Hash:
@@ -42,3 +44,7 @@ def logbar(current, total, name: str='Proccessing'):
     if current == total:
         sys.stdout.write("\n")
     sys.stdout.flush()
+
+def id_generator(size=12, chars=string.ascii_lowercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
+
