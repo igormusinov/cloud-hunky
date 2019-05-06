@@ -12,6 +12,7 @@ import kubernetes.client
 from kubernetes.client.rest import ApiException
 
 from .data_loader import AFSLoader
+from .util import id_generator
 
 
 def get_api_instance():
@@ -24,7 +25,7 @@ def get_api_instance():
 
 class KubeWorker():
 
-    def __init__(self, local_root: Path):
+    def __init__(self, local_root: Path = ''):
         self.afs_share = os.environ["AFS_SHARE"]
         self.azure_secret = os.environ["AZURE_SECRET"]
         self.afs_volume_name = os.environ["AFS_VOLUME_NAME"]
@@ -34,10 +35,28 @@ class KubeWorker():
         self.api_instance = get_api_instance()
         self.kube_test_credentials()
 
-    def kube_create_job_object(self, name, container_image, volume_sub_path='',
-                               namespace="default", container_name="jobcontainer",
+    def kube_create_job(self, container_image: str,
+                        command: t.List[str]=None,
+                        volume_sub_path: str = '',
+                        env_vars: dict = {}):
+        body = self.kube_create_job_object(container_image=container_image,
+                                           command=command,
+                                           volume_sub_path=volume_sub_path,
+                                           env_vars=env_vars)
+        try:
+            api_response = self.api_instance.create_namespaced_job("default", body,
+                                                                   pretty=True)
+            print(api_response)
+        except ApiException as e:
+            print(
+                "Exception when calling BatchV1Api->create_namespaced_job: %s\n" % e)
+        return api_response
+
+    def kube_create_job_object(self, container_image: str,
                                command: t.List[str] = None,
-                               env_vars={}):
+                               volume_sub_path: str = '',
+                               namespace: str="default",
+                               env_vars: dict={}):
         """
         Create a k8 Job Object
         Minimum definition of a job object:
@@ -69,6 +88,7 @@ class KubeWorker():
         body = client.V1Job(api_version="batch/v1", kind="Job")
         # Body needs Metadata
         # Attention: Each JOB must have a different name!
+        name = id_generator()
         body.metadata = client.V1ObjectMeta(namespace=namespace, name=name)
         # And a Status
         body.status = client.V1JobStatus()
@@ -81,7 +101,7 @@ class KubeWorker():
             env_list.append(client.V1EnvVar(name=env_name, value=env_value))
 
         volumes, volume_mounts = self.prepare_azure_volumes(volume_sub_path)
-        container = client.V1Container(name=id_generator(),
+        container = client.V1Container(name=name,
                                        image=container_image,
                                        env=env_list,
                                        command=command,
@@ -93,19 +113,6 @@ class KubeWorker():
         body.spec = client.V1JobSpec(ttl_seconds_after_finished=600,
                                      template=template.template)
         return body
-
-    def kube_create_job(self, container_image):
-        # Create the job definition
-        name = id_generator()
-        body = self.kube_create_job_object(name, container_image, env_vars={})
-        try:
-            api_response = self.api_instance.create_namespaced_job("default", body,
-                                                              pretty=True)
-            print(api_response)
-        except ApiException as e:
-            print(
-                "Exception when calling BatchV1Api->create_namespaced_job: %s\n" % e)
-        return api_response
 
     def prepare_azure_volumes(self, volume_sub_path):
         volume_mounts = [client.V1VolumeMount(name=self.afs_volume_name,
@@ -233,5 +240,3 @@ class KubeWorker():
             logging.info(api_response)
         except ApiException as e:
             print("Exception when calling API: %s\n" % e)
-
-
