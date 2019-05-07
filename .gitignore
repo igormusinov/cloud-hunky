@@ -6,3 +6,5 @@ __pycache__/
 \.idea/
 
 k8scontroller\.egg-info/
+
+example/shared_folder/

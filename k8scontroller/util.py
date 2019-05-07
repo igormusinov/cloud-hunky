@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Union
 import string
 import random
+import yaml
 
 
 def md5_update_from_file(filename: Union[str, Path], hash: Hash) -> Hash:
@@ -34,7 +35,7 @@ def md5_dir(directory: Union[str, Path]) -> str:
     return str(md5_update_from_dir(directory, hashlib.md5()).hexdigest())
 
 
-def logbar(current, total, name: str='Proccessing'):
+def logbar(current, total, name: str = 'Proccessing'):
     if total == 0:
         sys.stdout.write("\r%s [%s]" % (name, '=' * 50))
         sys.stdout.flush()
@@ -45,6 +46,13 @@ def logbar(current, total, name: str='Proccessing'):
         sys.stdout.write("\n")
     sys.stdout.flush()
 
+
 def id_generator(size=12, chars=string.ascii_lowercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
+
+def get_azure_config(path: Path = Path("~/.kube/azure_creds.yml")):
+    path = Path(path).expanduser()
+    with open(path, 'r') as ymlfile:
+        cfg = yaml.load(ymlfile)
+    return cfg

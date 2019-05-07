@@ -6,15 +6,17 @@ from multiprocessing import cpu_count
 
 from azure.storage.file import FileService
 
-from .util import logbar, md5_dir
+from .util import logbar, md5_dir, get_azure_config
 
 
 class AFSLoader():
 
-    def __init__(self, local_root: Path):
-        self.file_service = FileService(account_name=os.environ["AFS_NAME"],
-                                        account_key=os.environ["AFS_KEY"])
-        self.afs_share = os.environ["AFS_SHARE"]
+    def __init__(self, local_root: Path, azure_config: dict=None):
+        if azure_config is None:
+            azure_config = get_azure_config()
+        self.file_service = FileService(account_name=azure_config["AFS_NAME"],
+                                        account_key=azure_config["AFS_KEY"])
+        self.afs_share = azure_config["AFS_SHARE"]
         self.local_root = Path(local_root)
 
     def upload_data_afs(self, data_path: Path, push_data: bool=False):

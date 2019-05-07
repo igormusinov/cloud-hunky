@@ -16,17 +16,19 @@ sudo apt-get install -y kubectl
 
 2. Get the cluster config and put it in the '$HOME/.kube/config'.
 
-3. Mount AFS into your local directory (DEPRECATED for now).
+3. Mount AFS into your local directory (Optionally).
 https://docs.microsoft.com/ru-ru/azure/storage/files/storage-how-to-use-files-linux
 ```
 sudo apt-get install cifs-utils
 sudo apt install smbclient
+
 export STORAGE_KEY=<storage-account-key>
 export MOUNT_AZURE=<mount-point>
 export STORAGE_NAME="kubeocean"
 export AZURE_SHARE="datalake"
 mkdir $MOUNT_AZURE
-sudo mount -t cifs //$STORAGE_NAME.file.core.windows.net/$AZURE_SHARE $MOUNT_AZURE -o vers=3.0,username=$STORAGE_NAME,password=$STORAGE_KEY,dir_mode=0777,file_mode=0777,serverino
+ssh -L 8081:$STORAGE_NAME.file.core.windows.net:445 <user>@<Azure-VM-IP>
+sudo mount -t cifs //127.0.0.1/$AZURE_SHARE $MOUNT_AZURE -o vers=3.0,port=8081,username=$STORAGE_NAME,password=$STORAGE_KEY,dir_mode=0777,file_mode=0777,serverino
 
 ```
 

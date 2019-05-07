@@ -1,18 +1,13 @@
-import hashlib
-import string
-import random
 import logging
 from pathlib import Path
 import typing as t
-import yaml
-import sys, os, time
 
-from kubernetes import client, config, utils, watch
+from kubernetes import client, config, watch
 import kubernetes.client
 from kubernetes.client.rest import ApiException
 
 from .data_loader import AFSLoader
-from .util import id_generator
+from .util import id_generator, get_azure_config
 
 
 def get_api_instance():
@@ -25,24 +20,28 @@ def get_api_instance():
 
 class KubeWorker():
 
-    def __init__(self, local_root: Path = ''):
-        self.afs_share = os.environ["AFS_SHARE"]
-        self.azure_secret = os.environ["AZURE_SECRET"]
-        self.afs_volume_name = os.environ["AFS_VOLUME_NAME"]
-        self.azure_mount_path = os.environ["AZURE_MOUNT_PATH"]
-        self.afs_loader = AFSLoader(local_root)
-
+    def __init__(self, local_root: Path, azure_config: dict = None):
+        if azure_config is None:
+            azure_config = get_azure_config()
+        self.afs_share = azure_config["AFS_SHARE"]
+        self.azure_secret = azure_config["AZURE_SECRET"]
+        self.afs_loader = AFSLoader(local_root=local_root,
+                                    azure_config=azure_config)
         self.api_instance = get_api_instance()
         self.kube_test_credentials()
 
     def kube_create_job(self, container_image: str,
-                        command: t.List[str]=None,
+                        command: t.List[str] = None,
                         volume_sub_path: str = '',
-                        env_vars: dict = {}):
+                        env_vars: dict = None,
+                        afs_volume_name: str = "azure-volume",
+                        azure_mount_path: str = "/input"):
         body = self.kube_create_job_object(container_image=container_image,
                                            command=command,
                                            volume_sub_path=volume_sub_path,
-                                           env_vars=env_vars)
+                                           env_vars=env_vars,
+                                           afs_volume_name=afs_volume_name,
+                                           azure_mount_path=azure_mount_path)
         try:
             api_response = self.api_instance.create_namespaced_job("default", body,
                                                                    pretty=True)
@@ -55,8 +54,11 @@ class KubeWorker():
     def kube_create_job_object(self, container_image: str,
                                command: t.List[str] = None,
                                volume_sub_path: str = '',
-                               namespace: str="default",
-                               env_vars: dict={}):
+                               namespace: str = "default",
+                               env_vars: dict = None,
+                               afs_volume_name: str = None,
+                               azure_mount_path: str = None
+                               ):
         """
         Create a k8 Job Object
         Minimum definition of a job object:
@@ -97,10 +99,14 @@ class KubeWorker():
         template.template = client.V1PodTemplateSpec()
         # Passing Arguments in Env:
         env_list = []
-        for env_name, env_value in env_vars.items():
-            env_list.append(client.V1EnvVar(name=env_name, value=env_value))
+        if env_vars:
+            for env_name, env_value in env_vars.items():
+                env_list.append(client.V1EnvVar(name=env_name, value=env_value))
 
-        volumes, volume_mounts = self.prepare_azure_volumes(volume_sub_path)
+        volumes, volume_mounts = self.prepare_azure_volumes(
+            volume_sub_path=volume_sub_path,
+            afs_volume_name=afs_volume_name,
+            azure_mount_path=azure_mount_path)
         container = client.V1Container(name=name,
                                        image=container_image,
                                        env=env_list,
@@ -114,13 +120,17 @@ class KubeWorker():
                                      template=template.template)
         return body
 
-    def prepare_azure_volumes(self, volume_sub_path):
-        volume_mounts = [client.V1VolumeMount(name=self.afs_volume_name,
-                                              mount_path=self.azure_mount_path,
+    def prepare_azure_volumes(self, volume_sub_path: str,
+                              afs_volume_name: str,
+                              azure_mount_path: str):
+        assert afs_volume_name, f"Check afs_volume_name {afs_volume_name}"
+        assert azure_mount_path, f"Check azure_mount_path {azure_mount_path}"
+        volume_mounts = [client.V1VolumeMount(name=afs_volume_name,
+                                              mount_path=azure_mount_path,
                                               sub_path=volume_sub_path)]
         azure_volume = client.V1AzureFileVolumeSource(secret_name=self.azure_secret,
                                                       share_name=self.afs_share)
-        volumes = [client.V1Volume(name=self.afs_volume_name,
+        volumes = [client.V1Volume(name=afs_volume_name,
                                    azure_file=azure_volume)]
 
         return volumes, volume_mounts
