@@ -1,11 +1,29 @@
-# kubernetes-job-controller
+# Installation
 
-## Install (for users)
-1. Install controller 
 ```
 pip install -e .
 ```
-and kubectl https://kubernetes.io/docs/tasks/tools/install-kubectl/ 
+
+# ACI-worker
+1. Install az cli (https://docs.microsoft.com/ru-ru/cli/azure/install-azure-cli?view=azure-cli-latest)
+With apt
+```
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+```
+
+2. Get the Azure credentials and set env AZURE_AUTH_LOCATION
+```
+az login
+az ad sp create-for-rbac --sdk-auth > my.azureauth
+export AZURE_AUTH_LOCATION=/home/yourusername/my.azureauth
+```
+
+# kubernetes-job-controller
+
+## Install (for users)
+1. Get the cluster config and put it in the '$HOME/.kube/config'.
+
+2. Install kubectl https://kubernetes.io/docs/tasks/tools/install-kubectl/  (Optionally)
 ```
 sudo apt-get update && sudo apt-get install -y apt-transport-https
 curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
@@ -14,9 +32,9 @@ sudo apt-get update
 sudo apt-get install -y kubectl
 ```
 
-2. Get the cluster config and put it in the '$HOME/.kube/config'.
+# AFS for data both for ACI and k8s
 
-3. Mount AFS into your local directory (Optionally).
+Mount AFS into your local directory.
 https://docs.microsoft.com/ru-ru/azure/storage/files/storage-how-to-use-files-linux
 ```
 sudo apt-get install cifs-utils
@@ -74,4 +92,10 @@ kubectl create secret docker-registry gitlab-registry \
 kubectl create -f ./config/dashboard.yml
 kubectl proxy &
 curl http://127.0.0.1:8001/api/v1/namespaces/kube-system/services/http:kubernetes-dashboard:/proxy/
+```
+
+or with az cli
+```
+az login
+az aks browse --resource-group <rg-name> --name <aks-name>
 ```

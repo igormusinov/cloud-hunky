@@ -7,6 +7,6 @@ requirements=[
 ]
 
 setup(
-	name='k8scontroller',
+	name='cloudhunky',
 	install_requires=requirements,
 )

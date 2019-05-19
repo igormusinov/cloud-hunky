@@ -7,7 +7,7 @@ import kubernetes.client
 from kubernetes.client.rest import ApiException
 
 from .data_loader import AFSLoader
-from .util import id_generator, get_azure_config
+from .util import id_generator, get_afs_creds
 
 
 def get_api_instance():
@@ -18,30 +18,30 @@ def get_api_instance():
     return api_instance
 
 
-class KubeWorker():
+class KubeWorker:
 
-    def __init__(self, local_root: Path, azure_config: dict = None):
-        if azure_config is None:
-            azure_config = get_azure_config()
-        self.afs_share = azure_config["AFS_SHARE"]
-        self.azure_secret = azure_config["AZURE_SECRET"]
+    def __init__(self, local_root: Path, afs_creds: dict = None):
+        if afs_creds is None:
+            afs_creds = get_afs_creds()
+        self.afs_share = afs_creds["AFS_SHARE"]
+        self.azure_secret = afs_creds["AZURE_SECRET"]
         self.afs_loader = AFSLoader(local_root=local_root,
-                                    azure_config=azure_config)
+                                    afs_creds=afs_creds)
         self.api_instance = get_api_instance()
         self.kube_test_credentials()
 
     def kube_create_job(self, container_image: str,
                         command: t.List[str] = None,
-                        volume_sub_path: str = '',
                         env_vars: dict = None,
                         afs_volume_name: str = "azure-volume",
-                        azure_mount_path: str = "/input"):
+                        azure_mount_path: str = "/input",
+                        volume_sub_path: str = None,):
         body = self.kube_create_job_object(container_image=container_image,
                                            command=command,
-                                           volume_sub_path=volume_sub_path,
                                            env_vars=env_vars,
                                            afs_volume_name=afs_volume_name,
-                                           azure_mount_path=azure_mount_path)
+                                           azure_mount_path=azure_mount_path,
+                                           volume_sub_path=volume_sub_path,)
         try:
             api_response = self.api_instance.create_namespaced_job("default", body,
                                                                    pretty=True)
@@ -53,11 +53,11 @@ class KubeWorker():
 
     def kube_create_job_object(self, container_image: str,
                                command: t.List[str] = None,
-                               volume_sub_path: str = '',
                                namespace: str = "default",
                                env_vars: dict = None,
                                afs_volume_name: str = None,
-                               azure_mount_path: str = None
+                               azure_mount_path: str = None,
+                               volume_sub_path: str = None,
                                ):
         """
         Create a k8 Job Object
@@ -103,10 +103,11 @@ class KubeWorker():
             for env_name, env_value in env_vars.items():
                 env_list.append(client.V1EnvVar(name=env_name, value=env_value))
 
-        volumes, volume_mounts = self.prepare_azure_volumes(
-            volume_sub_path=volume_sub_path,
-            afs_volume_name=afs_volume_name,
-            azure_mount_path=azure_mount_path)
+        if volume_sub_path is not None:
+            volumes, volume_mounts = self.prepare_azure_volumes(
+                volume_sub_path=volume_sub_path,
+                afs_volume_name=afs_volume_name,
+                azure_mount_path=azure_mount_path)
         container = client.V1Container(name=name,
                                        image=container_image,
                                        env=env_list,
@@ -192,10 +193,9 @@ class KubeWorker():
                  But! If you already deleted the job via this API call, you now need to delete the Pod using Kubectl:
                  ex: kubectl delete pods/PODNAME
         """
-        api_instance = get_api_instance()
         deleteoptions = client.V1DeleteOptions()
         try:
-            jobs = api_instance.list_namespaced_job(namespace,
+            jobs = self.api_instance.list_namespaced_job(namespace,
                                                     include_uninitialized=False,
                                                     pretty=True,
                                                     timeout_seconds=60)
@@ -216,7 +216,7 @@ class KubeWorker():
                 try:
                     # What is at work here. Setting Grace Period to 0 means delete ASAP. Otherwise it defaults to
                     # some value I can't find anywhere. Propagation policy makes the Garbage cleaning Async
-                    api_response = api_instance.delete_namespaced_job(jobname,
+                    api_response = self.api_instance.delete_namespaced_job(jobname,
                                                                       namespace,
                                                                       deleteoptions,
                                                                       grace_period_seconds=0,
@@ -250,3 +250,4 @@ class KubeWorker():
             logging.info(api_response)
         except ApiException as e:
             print("Exception when calling API: %s\n" % e)
+        logging.info("There is a connection with Kubernetes")

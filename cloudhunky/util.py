@@ -50,9 +50,16 @@ def logbar(current, total, name: str = 'Proccessing'):
 def id_generator(size=12, chars=string.ascii_lowercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
-
-def get_azure_config(path: Path = Path("~/.kube/azure_creds.yml")):
+def get_afs_creds(path: Path = Path("~/.azure/afs_creds.yml")):
     path = Path(path).expanduser()
     with open(path, 'r') as ymlfile:
-        cfg = yaml.load(ymlfile)
-    return cfg
+        afs_creds = yaml.load(ymlfile)
+    assert afs_creds["AFS_NAME"], "Invalid afs_name"
+    assert afs_creds["AFS_KEY"], "Invalid afs_name"
+    assert afs_creds["AFS_SHARE"], "Invalid afs_name"
+    return afs_creds
+
+def get_azure_creds(path: Path = Path("~/.azure/azure_creds")):
+    with open(path, 'r') as file:
+        azure_creds = file.read()
+    return azure_creds

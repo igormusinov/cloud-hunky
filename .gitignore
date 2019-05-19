@@ -8,3 +8,5 @@ __pycache__/
 k8scontroller\.egg-info/
 
 example/shared_folder/
+
+cloudhunky\.egg-info/
