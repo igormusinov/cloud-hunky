@@ -1,4 +1,4 @@
-# Installation
+# Installation (for users)
 
 ```
 pip install -e .
@@ -15,12 +15,11 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 ```
 az login
 az ad sp create-for-rbac --sdk-auth > my.azureauth
-export AZURE_AUTH_LOCATION=/home/yourusername/my.azureauth
+export AZURE_AUTH_LOCATION=/home/yourusername/.azure/azure_creds
 ```
 
-# kubernetes-job-controller
+# Kubernetes-worker (job-controller)
 
-## Install (for users)
 1. Get the cluster config and put it in the '$HOME/.kube/config'.
 
 2. Install kubectl https://kubernetes.io/docs/tasks/tools/install-kubectl/  (Optionally)
@@ -32,7 +31,15 @@ sudo apt-get update
 sudo apt-get install -y kubectl
 ```
 
-# AFS for data both for ACI and k8s
+# AFS both for ACI and k8s
+
+1. Create .yml file with your afs creds
+```
+echo 'AFS_NAME: <afs_name>
+AFS_KEY: <afs_key>
+AFS_SHARE: <afs_share>
+AZURE_SECRET: <azure_secret>' > ~/.azure/afs_creds.yml
+```
 
 Mount AFS into your local directory.
 https://docs.microsoft.com/ru-ru/azure/storage/files/storage-how-to-use-files-linux
