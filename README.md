@@ -14,7 +14,7 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 2. Get the Azure credentials and set env AZURE_AUTH_LOCATION
 ```
 az login
-az ad sp create-for-rbac --sdk-auth > my.azureauth
+az ad sp create-for-rbac --sdk-auth > ~/.azure/azure_creds
 export AZURE_AUTH_LOCATION=/home/yourusername/.azure/azure_creds
 ```
 
