@@ -11,10 +11,11 @@ With apt
 curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 ```
 
-2. Get the Azure credentials and set env AZURE_AUTH_LOCATION
+2. Get the Azure credentials from the administrator. Put it into the ~/.azure/azure_creds and set env AZURE_AUTH_LOCATION
 ```
-az login
-az ad sp create-for-rbac --sdk-auth > ~/.azure/azure_creds
+#for admin
+#az ad sp create-for-rbac --sdk-auth --scopes /subscriptions/<subscr>/resourceGroups/<resourcegroup>
+
 export AZURE_AUTH_LOCATION=/home/yourusername/.azure/azure_creds
 ```
 
