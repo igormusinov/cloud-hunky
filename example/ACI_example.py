@@ -19,7 +19,7 @@ from cloudhunky.aci_worker import ACIWorker
 from cloudhunky.util import get_afs_creds
 
 
-# In[2]:
+# In[6]:
 
 
 import logging
@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.INFO)
 resource_group_name = "ACI"   
 aci_worker = ACIWorker(resource_group_name)
 
-container_image_name="busybox:latest"
+container_image_name="alpine:3.6"
 command = ["/bin/sh", "-c", "echo HELLO WORLD from busybox && ls /input"]
 volume_mount_path = "/input"
 afs_creds = get_afs_creds()

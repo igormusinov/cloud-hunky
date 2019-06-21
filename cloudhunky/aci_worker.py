@@ -10,6 +10,7 @@ from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from azure.mgmt.containerinstance.models import (ContainerGroup,
                                                  Container,
                                                  ContainerGroupRestartPolicy,
+                                                 GpuResource,
                                                  EnvironmentVariable,
                                                  ResourceRequests,
                                                  ResourceRequirements,
@@ -40,6 +41,8 @@ class ACIWorker:
                                  command: list = None,
                                  memory_in_gb: int = 1,
                                  cpu: float = 1.0,
+                                 gpu_count: int=0,
+                                 gpu_type: str='K80',
                                  envs: dict = {},
                                  volume_mount_path: str = "/input",
                                  afs_name: str = None,
@@ -65,8 +68,12 @@ class ACIWorker:
             logging.info("Creating container group '{0}' with start command '{1}'"
                          .format(container_group_name, command))
 
+        gpu = None
+        if gpu_count > 0:
+            gpu = GpuResource(count=gpu_count, sku=gpu_type)
         container_resource_requests = ResourceRequests(memory_in_gb=memory_in_gb,
-                                                       cpu=cpu)
+                                                       cpu=cpu,
+                                                       gpu=gpu)
         container_resource_requirements = ResourceRequirements(
             requests=container_resource_requests)
 
