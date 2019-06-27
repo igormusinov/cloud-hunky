@@ -45,7 +45,7 @@ class ACIWorker:
                                  gpu_count: int=0,
                                  gpu_type: str='K80',
                                  envs: dict = {},
-                                 timeout: int=100,
+                                 timeout: int=600,
                                  volume_mount_path: str = "/input",
                                  afs_name: str = None,
                                  afs_key: str = None,
