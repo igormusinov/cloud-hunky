@@ -1,14 +1,15 @@
 import sys
 import os
-import time
 import logging
 from pathlib import Path
+import time
 
 from azure.common.client_factory import get_client_from_auth_file
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from azure.mgmt.containerinstance.models import (ContainerGroup,
                                                  Container,
+                                                 ContainerState,
                                                  ContainerGroupRestartPolicy,
                                                  GpuResource,
                                                  EnvironmentVariable,
@@ -44,6 +45,7 @@ class ACIWorker:
                                  gpu_count: int=0,
                                  gpu_type: str='K80',
                                  envs: dict = {},
+                                 timeout: int=100,
                                  volume_mount_path: str = "/input",
                                  afs_name: str = None,
                                  afs_key: str = None,
@@ -111,6 +113,7 @@ class ACIWorker:
         # Wait for the container create operation to complete. The operation is
         # "done" when the container group provisioning state is one of:
         # Succeeded, Canceled, Failed
+        logging.info("Container Started")
         while result.done() is False:
             sys.stdout.write('.')
             time.sleep(1)
@@ -125,6 +128,17 @@ class ACIWorker:
             print("\nCreation of container group '{}' failed. Provisioning state"
                   "is: {}".format(container_group_name,
                                   container_group.provisioning_state))
+
+        start = time.time()
+        while timeout > (time.time() - start):
+            container_group = self.aci_client.container_groups.get(self.resource_group.name,
+                                                    container_group_name)
+            container_state = container_group.containers[0].instance_view.current_state.state
+            if container_state.lower() == "terminated":
+                logging.info("Container terminated")
+                break
+            time.sleep(1)
+
 
         logs = self.aci_client.container.list_logs(self.resource_group.name,
                                                    container_group_name,
