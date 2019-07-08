@@ -116,7 +116,7 @@ class ACIWorker:
         logging.info("Container Started")
         while result.done() is False:
             sys.stdout.write('.')
-            time.sleep(1)
+            time.sleep(20)
 
         container_group = self.aci_client.container_groups.get(
             self.resource_group.name,
