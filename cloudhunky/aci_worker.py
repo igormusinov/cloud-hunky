@@ -19,6 +19,7 @@ from azure.mgmt.containerinstance.models import (ContainerGroup,
                                                  AzureFileVolume,
                                                  Volume,
                                                  VolumeMount)
+from azure.mgmt.containerinstance.models import image_registry_credential, ImageRegistryCredential
 
 from cloudhunky.util import id_generator
 
@@ -50,7 +51,10 @@ class ACIWorker:
                                  afs_name: str = None,
                                  afs_key: str = None,
                                  afs_share: str = None,
-                                 afs_mount_subpath: str = ''):
+                                 afs_mount_subpath: str = '',
+                                 image_registry_server: str = None,
+                                 image_registry_username: str = None,
+                                 image_registry_pwd: str = None):
 
         """Creates a container group with a single task-based container who's
            restart policy is 'Never'. If specified, the container runs a custom
@@ -91,6 +95,21 @@ class ACIWorker:
                                                                 afs_key=afs_key,
                                                                 afs_share=afs_share,
                                                                 volume_mount_path=volume_mount_path)
+
+        if image_registry_username is not None or image_registry_pwd is not None:
+            if image_registry_username is None:
+                raise ValueError("insert image_registry_username")
+            if image_registry_pwd is None:
+                raise ValueError("insert image_registry_pwd")
+            if image_registry_server is None:
+                raise ValueError("insert image_registry_server")
+            image_registry_credentials = [ImageRegistryCredential(server=image_registry_server,
+                                                                 username=image_registry_username,
+                                                                 password=image_registry_pwd)]
+        else:
+            image_registry_credentials = None
+
+
         container = Container(name=container_group_name,
                               image=container_image_name,
                               resources=container_resource_requirements,
@@ -103,7 +122,8 @@ class ACIWorker:
                                containers=[container],
                                os_type=OperatingSystemTypes.linux,
                                restart_policy=ContainerGroupRestartPolicy.never,
-                               volumes=volumes)
+                               volumes=volumes,
+                               image_registry_credentials=image_registry_credentials)
 
         result = self.aci_client.container_groups.create_or_update(
             self.resource_group.name,
