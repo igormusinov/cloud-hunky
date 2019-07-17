@@ -158,6 +158,8 @@ class ACIWorker:
                 logging.info("Container terminated")
                 break
             time.sleep(1)
+        if timeout > (time.time() - start):
+            logging.warning(f"Timeout {timeout} was exceeded!")
 
 
         logs = self.aci_client.container.list_logs(self.resource_group.name,
