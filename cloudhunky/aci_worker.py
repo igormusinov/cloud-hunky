@@ -158,7 +158,7 @@ class ACIWorker:
                 logging.info("Container terminated")
                 break
             time.sleep(1)
-        if timeout > (time.time() - start):
+        if timeout < (time.time() - start):
             logging.warning(f"Timeout {timeout} was exceeded!")
 
 
