@@ -19,7 +19,7 @@ from azure.mgmt.containerinstance.models import (ContainerGroup,
                                                  AzureFileVolume,
                                                  Volume,
                                                  VolumeMount)
-from azure.mgmt.containerinstance.models import image_registry_credential, ImageRegistryCredential
+from azure.mgmt.containerinstance.models import ImageRegistryCredential
 
 from cloudhunky.util import id_generator
 
@@ -27,8 +27,9 @@ from cloudhunky.util import id_generator
 class ACIWorker:
     def __init__(self, resource_group_name):
         auth_file_path = os.getenv('AZURE_AUTH_LOCATION', None)
+        logger = logging.getLogger()
         if auth_file_path is not None:
-            logging.info("Authenticating with Azure using credentials in file at {0}"
+            logger.info("Authenticating with Azure using credentials in file at {0}"
                          .format(auth_file_path))
 
             self.aci_client = get_client_from_auth_file(
@@ -36,7 +37,7 @@ class ACIWorker:
             res_client = get_client_from_auth_file(ResourceManagementClient)
             self.resource_group = res_client.resource_groups.get(resource_group_name)
         else:
-            logging.warning("\nFailed to authenticate to Azure. Have you set the"
+            logger.warning("\nFailed to authenticate to Azure. Have you set the"
                             " AZURE_AUTH_LOCATION environment variable?\n")
 
     def run_task_based_container(self, container_image_name: str,
@@ -71,7 +72,7 @@ class ACIWorker:
         envs['DATA'] = str(Path(volume_mount_path) / afs_mount_subpath)
 
         if command is not None:
-            logging.info("Creating container group '{0}' with start command '{1}'"
+            self.logger.info("Creating container group '{0}' with start command '{1}'"
                          .format(container_group_name, command))
 
         gpu = None
@@ -95,7 +96,7 @@ class ACIWorker:
                                                                 afs_key=afs_key,
                                                                 afs_share=afs_share,
                                                                 volume_mount_path=volume_mount_path)
-
+        image_registry_credentials = None
         if image_registry_username is not None or image_registry_pwd is not None:
             if image_registry_username is None:
                 raise ValueError("insert image_registry_username")
@@ -106,8 +107,6 @@ class ACIWorker:
             image_registry_credentials = [ImageRegistryCredential(server=image_registry_server,
                                                                  username=image_registry_username,
                                                                  password=image_registry_pwd)]
-        else:
-            image_registry_credentials = None
 
 
         container = Container(name=container_group_name,
@@ -133,19 +132,20 @@ class ACIWorker:
         # Wait for the container create operation to complete. The operation is
         # "done" when the container group provisioning state is one of:
         # Succeeded, Canceled, Failed
-        logging.info("Container Started")
+        self.logger.info("Container Group is pending")
+        loglevel = self.logger.level
+        self.logger.setLevel(logging.WARNING)
         while result.done() is False:
-            sys.stdout.write('.')
-            time.sleep(20)
-
+            time.sleep(30)
+        self.logger.setLevel(loglevel)
         container_group = self.aci_client.container_groups.get(
             self.resource_group.name,
             container_group_name)
         if str(container_group.provisioning_state).lower() == 'succeeded':
-            print("\nCreation of container group '{}' succeeded."
-                  .format(container_group_name))
+            self.logger.info("\nCreation of container group '{}' succeeded."
+                         .format(container_group_name))
         else:
-            print("\nCreation of container group '{}' failed. Provisioning state"
+            self.logger.warning("\nCreation of container group '{}' failed. Provisioning state"
                   "is: {}".format(container_group_name,
                                   container_group.provisioning_state))
 
@@ -155,11 +155,11 @@ class ACIWorker:
                                                     container_group_name)
             container_state = container_group.containers[0].instance_view.current_state.state
             if container_state.lower() == "terminated":
-                logging.info("Container terminated")
+                self.logger.info("Container terminated")
                 break
             time.sleep(1)
         if timeout < (time.time() - start):
-            logging.warning(f"Timeout {timeout} was exceeded!")
+            self.logger.warning(f"Timeout {timeout} was exceeded!")
 
 
         logs = self.aci_client.container.list_logs(self.resource_group.name,
