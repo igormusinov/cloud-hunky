@@ -25,11 +25,12 @@ from cloudhunky.util import id_generator
 
 
 class ACIWorker:
-    def __init__(self, resource_group_name):
+    def __init__(self, resource_group_name, logging_level=logging.INFO):
         auth_file_path = os.getenv('AZURE_AUTH_LOCATION', None)
-        logger = logging.getLogger()
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging_level)
         if auth_file_path is not None:
-            logger.info("Authenticating with Azure using credentials in file at {0}"
+            self.logger.info("Authenticating with Azure using credentials in file at {0}"
                          .format(auth_file_path))
 
             self.aci_client = get_client_from_auth_file(
@@ -37,7 +38,7 @@ class ACIWorker:
             res_client = get_client_from_auth_file(ResourceManagementClient)
             self.resource_group = res_client.resource_groups.get(resource_group_name)
         else:
-            logger.warning("\nFailed to authenticate to Azure. Have you set the"
+            self.logger.warning("\nFailed to authenticate to Azure. Have you set the"
                             " AZURE_AUTH_LOCATION environment variable?\n")
 
     def run_task_based_container(self, container_image_name: str,
@@ -133,16 +134,13 @@ class ACIWorker:
         # "done" when the container group provisioning state is one of:
         # Succeeded, Canceled, Failed
         self.logger.info("Container Group is pending")
-        loglevel = self.logger.level
-        self.logger.setLevel(logging.WARNING)
         while result.done() is False:
             time.sleep(30)
-        self.logger.setLevel(loglevel)
         container_group = self.aci_client.container_groups.get(
             self.resource_group.name,
             container_group_name)
         if str(container_group.provisioning_state).lower() == 'succeeded':
-            self.logger.info("\nCreation of container group '{}' succeeded."
+            self.logger.info("Creation of container group '{}' succeeded."
                          .format(container_group_name))
         else:
             self.logger.warning("\nCreation of container group '{}' failed. Provisioning state"
