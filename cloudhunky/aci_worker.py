@@ -1,6 +1,6 @@
 import sys
 import os
-import logging
+from . import cloudhunky_logger
 from pathlib import Path
 import time
 
@@ -25,12 +25,10 @@ from cloudhunky.util import id_generator
 
 
 class ACIWorker:
-    def __init__(self, resource_group_name, logging_level=logging.INFO):
+    def __init__(self, resource_group_name):
         auth_file_path = os.getenv('AZURE_AUTH_LOCATION', None)
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging_level)
         if auth_file_path is not None:
-            self.logger.info("Authenticating with Azure using credentials in file at {0}"
+            cloudhunky_logger.info("Authenticating with Azure using credentials in file at {0}"
                          .format(auth_file_path))
 
             self.aci_client = get_client_from_auth_file(
@@ -38,7 +36,7 @@ class ACIWorker:
             res_client = get_client_from_auth_file(ResourceManagementClient)
             self.resource_group = res_client.resource_groups.get(resource_group_name)
         else:
-            self.logger.warning("\nFailed to authenticate to Azure. Have you set the"
+            cloudhunky_logger.warning("\nFailed to authenticate to Azure. Have you set the"
                             " AZURE_AUTH_LOCATION environment variable?\n")
 
     def run_task_based_container(self, container_image_name: str,
@@ -73,7 +71,7 @@ class ACIWorker:
         envs['DATA'] = str(Path(volume_mount_path) / afs_mount_subpath)
 
         if command is not None:
-            self.logger.info("Creating container group '{0}' with start command '{1}'"
+            cloudhunky_logger.info("Creating container group '{0}' with start command '{1}'"
                          .format(container_group_name, command))
 
         gpu = None
@@ -133,38 +131,46 @@ class ACIWorker:
         # Wait for the container create operation to complete. The operation is
         # "done" when the container group provisioning state is one of:
         # Succeeded, Canceled, Failed
-        self.logger.info("Container Group is pending")
+        cloudhunky_logger.info("Container Group is pending")
         while result.done() is False:
             time.sleep(30)
-        container_group = self.aci_client.container_groups.get(
-            self.resource_group.name,
-            container_group_name)
-        if str(container_group.provisioning_state).lower() == 'succeeded':
-            self.logger.info("Creation of container group '{}' succeeded."
-                         .format(container_group_name))
-        else:
-            self.logger.warning("\nCreation of container group '{}' failed. Provisioning state"
-                  "is: {}".format(container_group_name,
-                                  container_group.provisioning_state))
+        try:
+            container_group = self.aci_client.container_groups.get(
+                self.resource_group.name,
+                container_group_name)
+            if str(container_group.provisioning_state).lower() == 'succeeded':
+                cloudhunky_logger.info("Creation of container group '{}' succeeded."
+                             .format(container_group_name))
+            else:
+                cloudhunky_logger.warning("\nCreation of container group '{}' failed. Provisioning state"
+                      "is: {}".format(container_group_name,
+                                      container_group.provisioning_state))
+        except:
+            cloudhunky_logger.exception()
 
-        start = time.time()
-        while timeout > (time.time() - start):
-            container_group = self.aci_client.container_groups.get(self.resource_group.name,
+        try:
+            start = time.time()
+            while timeout > (time.time() - start):
+                container_group = self.aci_client.container_groups.get(self.resource_group.name,
+                                                        container_group_name)
+                container_state = container_group.containers[0].instance_view.current_state.state
+                if container_state.lower() == "terminated":
+                    cloudhunky_logger.info("Container terminated")
+                    break
+                time.sleep(1)
+            if timeout < (time.time() - start):
+                cloudhunky_logger.warning(f"Timeout {timeout} was exceeded!")
+        except:
+            cloudhunky_logger.exception()
+
+        try:
+            logs = self.aci_client.container.list_logs(self.resource_group.name,
+                                                       container_group_name,
+                                                       container.name)
+            self.aci_client.container_groups.delete(self.resource_group.name,
                                                     container_group_name)
-            container_state = container_group.containers[0].instance_view.current_state.state
-            if container_state.lower() == "terminated":
-                self.logger.info("Container terminated")
-                break
-            time.sleep(1)
-        if timeout < (time.time() - start):
-            self.logger.warning(f"Timeout {timeout} was exceeded!")
-
-
-        logs = self.aci_client.container.list_logs(self.resource_group.name,
-                                                   container_group_name,
-                                                   container.name)
-        self.aci_client.container_groups.delete(self.resource_group.name,
-                                                container_group_name)
+        except:
+            cloudhunky_logger.exception()
         return container_group_name, logs
 
     def prepare_azure_volumes(self, afs_name: str, afs_key: str, afs_share: str,
