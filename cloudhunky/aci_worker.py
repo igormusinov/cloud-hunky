@@ -19,6 +19,7 @@ from azure.mgmt.containerinstance.models import (ContainerGroup,
                                                  AzureFileVolume,
                                                  Volume,
                                                  VolumeMount)
+from msrestazure.azure_exceptions import CloudError
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
 
 from cloudhunky.util import id_generator
@@ -123,10 +124,20 @@ class ACIWorker:
                                volumes=volumes,
                                image_registry_credentials=image_registry_credentials)
 
-        result = self.aci_client.container_groups.create_or_update(
-            self.resource_group.name,
-            container_group_name,
-            group)
+        for i in range(2):
+            try:
+                result = self.aci_client.container_groups.create_or_update(
+                        self.resource_group.name,
+                        container_group_name,
+                        group)
+            except CloudError as exp:
+                cloudhunky_logger.exception(exp)
+                cloudhunky_logger.info("Try to reduce the required resources")
+                if i == 1:
+                    raise exp
+            else:
+                cloudhunky_logger.info("Azure is provisioning container group")
+                break
 
         # Wait for the container create operation to complete. The operation is
         # "done" when the container group provisioning state is one of:
@@ -145,8 +156,8 @@ class ACIWorker:
                 cloudhunky_logger.warning("\nCreation of container group '{}' failed. Provisioning state"
                       "is: {}".format(container_group_name,
                                       container_group.provisioning_state))
-        except:
-            cloudhunky_logger.exception()
+        except Exception as exp:
+            cloudhunky_logger.exception(exp)
 
         try:
             start = time.time()
@@ -160,8 +171,8 @@ class ACIWorker:
                 time.sleep(1)
             if timeout < (time.time() - start):
                 cloudhunky_logger.warning(f"Timeout {timeout} was exceeded!")
-        except:
-            cloudhunky_logger.exception()
+        except Exception as exp:
+            cloudhunky_logger.exception(exp)
 
         try:
             logs = self.aci_client.container.list_logs(self.resource_group.name,
@@ -169,8 +180,8 @@ class ACIWorker:
                                                        container.name)
             self.aci_client.container_groups.delete(self.resource_group.name,
                                                     container_group_name)
-        except:
-            cloudhunky_logger.exception()
+        except Exception as exp:
+            cloudhunky_logger.exception(exp)
         return container_group_name, logs
 
     def prepare_azure_volumes(self, afs_name: str, afs_key: str, afs_share: str,
