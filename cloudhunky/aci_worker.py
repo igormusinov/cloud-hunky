@@ -155,8 +155,11 @@ class ACIWorker:
                              .format(container_group_name))
             else:
                 cloudhunky_logger.warning("\nCreation of container group '{}' failed. Provisioning state"
-                      "is: {}".format(container_group_name,
+                      "is: {}. Deleting the container group.".format(container_group_name,
                                       container_group.provisioning_state))
+                self.aci_client.container_groups.delete(self.resource_group.name,
+                                                        container_group_name)
+                return
         except Exception as exp:
             cloudhunky_logger.exception(exp)
 
