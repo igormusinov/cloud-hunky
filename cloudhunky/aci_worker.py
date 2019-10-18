@@ -69,7 +69,7 @@ class ACIWorker:
                         -- The command line that should be executed when the
                            container starts. This value can be None.
         """
-        container_group_name = str(id_generator()) + "-" + tag
+        container_group_name = str(id_generator()) + tag
         envs['DATA'] = str(Path(volume_mount_path) / afs_mount_subpath)
 
         if command is not None:
