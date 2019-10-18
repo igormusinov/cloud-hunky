@@ -56,7 +56,7 @@ class ACIWorker:
                                  image_registry_server: str = None,
                                  image_registry_username: str = None,
                                  image_registry_pwd: str = None,
-                                 tag=""):
+                                 tag: str = ""):
 
         """Creates a container group with a single task-based container who's
            restart policy is 'Never'. If specified, the container runs a custom
