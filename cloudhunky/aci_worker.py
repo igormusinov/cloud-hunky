@@ -55,7 +55,8 @@ class ACIWorker:
                                  afs_mount_subpath: str = '',
                                  image_registry_server: str = None,
                                  image_registry_username: str = None,
-                                 image_registry_pwd: str = None):
+                                 image_registry_pwd: str = None,
+                                 tag=""):
 
         """Creates a container group with a single task-based container who's
            restart policy is 'Never'. If specified, the container runs a custom
@@ -68,7 +69,7 @@ class ACIWorker:
                         -- The command line that should be executed when the
                            container starts. This value can be None.
         """
-        container_group_name = id_generator()
+        container_group_name = str(id_generator()) + "-" + tag
         envs['DATA'] = str(Path(volume_mount_path) / afs_mount_subpath)
 
         if command is not None:
