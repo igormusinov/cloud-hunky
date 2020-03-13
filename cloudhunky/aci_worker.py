@@ -48,6 +48,7 @@ class ACIWorker:
                                  gpu_type: str='K80',
                                  envs: dict = {},
                                  timeout: int=600,
+                                 afs_volumes: list = [],
                                  volume_mount_path: str = "/input",
                                  afs_name: str = None,
                                  afs_key: str = None,
@@ -93,10 +94,18 @@ class ACIWorker:
         volume_mounts = None
         volumes = None
         if afs_mount_subpath is not None:
-            volumes, volume_mounts = self.prepare_azure_volumes(afs_name=afs_name,
-                                                                afs_key=afs_key,
-                                                                afs_share=afs_share,
-                                                                volume_mount_path=volume_mount_path)
+            if len(afs_volumes) == 0 :
+                #looks like client using deprecated afs mount method
+                afs_volumes = [
+                    {
+                        'name' : 'azure-volume',
+                        'mount_path': volume_mount_path,
+                        'afs_name': afs_name,
+                        'afs_key': afs_key,
+                        'afs_share': afs_share,
+                    },
+                ]
+            volumes, volume_mounts = self.prepare_azure_volumes(afs_volumes)
         image_registry_credentials = None
         if image_registry_username is not None or image_registry_pwd is not None:
             if image_registry_username is None:
@@ -188,18 +197,20 @@ class ACIWorker:
             cloudhunky_logger.exception(exp)
         return container_group_name, logs
 
-    def prepare_azure_volumes(self, afs_name: str, afs_key: str, afs_share: str,
-                              volume_mount_path: str):
-        assert afs_name is not None
-        assert afs_key is not None
-        assert afs_share is not None
-        assert volume_mount_path is not None
-
-        az_volume = AzureFileVolume(share_name=afs_share,
-                                    storage_account_name=afs_name,
-                                    storage_account_key=afs_key)
-        volumes = [Volume(name="azure-volume",
-                          azure_file=az_volume)]
-        volume_mount = [VolumeMount(name="azure-volume",
-                                    mount_path=volume_mount_path)]
-        return volumes, volume_mount
+    def prepare_azure_volumes(self, afs_volumes : list = []):
+        volumes = []
+        volume_mounts = []
+        for afs in afs_volumes:
+            assert afs['afs_name'] is not None
+            assert afs['afs_key'] is not None
+            assert afs['afs_share'] is not None
+            assert afs['mount_path'] is not None
+            assert afs['name'] is not None
+            az_volume = AzureFileVolume(share_name = afs['afs_share'],
+                                        storage_account_name = afs['afs_name'],
+                                        storage_account_key = afs['afs_key'])
+            volumes.append(Volume(name =a fs['name'],
+                                  azure_file = az_volume))
+            volume_mounts.append(VolumeMount(name = afs['name'],
+                                             mount_path = afs['mount_path']))
+        return volumes, volume_mounts
