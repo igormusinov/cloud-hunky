@@ -209,7 +209,7 @@ class ACIWorker:
             az_volume = AzureFileVolume(share_name = afs['afs_share'],
                                         storage_account_name = afs['afs_name'],
                                         storage_account_key = afs['afs_key'])
-            volumes.append(Volume(name =a fs['name'],
+            volumes.append(Volume(name =afs['name'],
                                   azure_file = az_volume))
             volume_mounts.append(VolumeMount(name = afs['name'],
                                              mount_path = afs['mount_path']))
