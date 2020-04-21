@@ -3,7 +3,7 @@ from setuptools import setup
 
 requirements=[
     'kubernetes',
-	'azure'
+	'azure==4.0.0'
 ]
 
 setup(
